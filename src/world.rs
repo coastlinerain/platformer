@@ -5,14 +5,26 @@ use crate::level::Level;
 use crate::player::Player;
 use crate::traits::Entity;
 use macroquad::prelude::*;
+use std::fmt;
 
-#[derive(Debug)]
 pub struct World {
     pub player: Player,
     pub enemies: Vec<Enemy>,
     pub levels_matrix: Vec<Vec<Level>>, // Matriz de niveles
     pub current_coords: (usize, usize),
     pub camera: GameCamera,
+}
+
+impl fmt::Debug for World {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("World")
+            .field("player", &self.player)
+            .field("enemies", &self.enemies)
+            .field("levels_matrix", &self.levels_matrix.len())
+            .field("current_coords", &self.current_coords)
+            .field("camera", &self.camera)
+            .finish()
+    }
 }
 
 impl World {
@@ -43,8 +55,8 @@ impl World {
         //     "Intentando salir por la derecha... p.pos.x: {}, level_w: {}",
         //     p.pos.x, level_w
         // );
-        println!("Player position: ({}, {})", p.pos.x, p.pos.y);
-        println!("Current level size: ({} x {})", level_w, level_h);
+        // println!("Player position: ({}, {})", p.pos.x, p.pos.y);
+        // println!("Current level size: ({} x {})", level_w, level_h);
         if p.pos.x + p.w > level_w - 5.0 {
             // Un pequeño margen de 5px
             if cx < self.levels_matrix[0].len() - 1 {

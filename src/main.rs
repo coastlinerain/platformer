@@ -18,6 +18,9 @@ async fn main() {
     let mut game_world = World::new(world_data);
 
     loop {
+        if is_key_pressed(KeyCode::P) {
+            println!("{:#?}", game_world);
+        }
         clear_background(BLACK);
         game_world.update(get_frame_time());
         game_world.draw();
