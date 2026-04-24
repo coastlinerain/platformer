@@ -86,13 +86,13 @@ impl Enemy {
 
         // Eje X
         self.pos.x += self.vel.x;
-        if nivel.colision(self.pos.x, self.pos.y, self.w, self.h) {
+        if nivel.map_colision(self) {
             self.pos.x -= self.vel.x;
         }
 
         // Eje Y
         self.pos.y += self.vel.y;
-        if nivel.colision(self.pos.x, self.pos.y, self.w, self.h) {
+        if nivel.map_colision(self) {
             if self.vel.y > 0.0 {
                 self.grounded = true;
             }

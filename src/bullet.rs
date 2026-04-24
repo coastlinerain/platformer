@@ -20,7 +20,7 @@ impl Colisionable for Bullet {
 impl Entity for Bullet {
     fn update(&mut self, dt: f32, nivel: &Level) {
         self.pos += self.vel * dt;
-        if nivel.colision(self.pos.x, self.pos.y, 5.0, 5.0) {
+        if nivel.map_colision(self) {
             self.active = false;
         }
     }

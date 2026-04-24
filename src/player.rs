@@ -31,7 +31,6 @@ impl Entity for Player {
 
         if is_key_pressed(KeyCode::Space) && self.grounded {
             self.vel.y = SALTO_FUERZA * dt;
-            self.grounded = false;
         }
 
         //direccion
@@ -62,14 +61,13 @@ impl Entity for Player {
         // Eje Y
         self.pos.y += self.vel.y;
         if nivel.colision(self.pos.x, self.pos.y, self.w, self.h) {
-            if self.vel.y > 0.0 {
-                self.grounded = true;
-            }
+            if self.vel.y > 0.0 {}
             self.pos.y -= self.vel.y;
             self.vel.y = 0.0;
         } else {
-            self.grounded = false;
         }
+
+        self.grounded = nivel.grounded(self.get_rect());
 
         self.bullets.retain(|b| b.active);
     }
