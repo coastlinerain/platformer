@@ -1,16 +1,16 @@
 use macroquad::prelude::*;
 
-use crate::{config::TILE_SIZE, traits::Colisionable};
+use crate::{config::TILE_SIZE, traits::Colisionable, world::TileType};
 
 #[derive(Debug)]
 pub struct Level {
-    grid: Vec<Vec<u8>>,
-    width: usize,
-    height: usize,
+    pub grid: Vec<Vec<TileType>>,
+    pub width: usize,
+    pub height: usize,
 }
 
 impl Level {
-    pub fn new(data: Vec<Vec<u8>>) -> Self {
+    pub fn new(data: Vec<Vec<TileType>>) -> Self {
         let height = data.len();
         let width = if height > 0 { data[0].len() } else { 0 };
         Self {
@@ -70,7 +70,7 @@ impl Level {
         let gx = (x / TILE_SIZE) as usize;
         let gy = (y / TILE_SIZE) as usize;
         if gx < self.width && gy < self.height {
-            return self.grid[gy][gx] == 1;
+            return self.grid[gy][gx] == TileType::Wall;
         }
         true
     }
@@ -101,7 +101,7 @@ impl Level {
         for gy in y_start..=y_end {
             for gx in x_start..=x_end {
                 if gx >= 0 && gx < self.width as i32 && gy >= 0 && gy < self.height as i32 {
-                    if self.grid[gy as usize][gx as usize] == 1 {
+                    if self.grid[gy as usize][gx as usize] == TileType::Wall {
                         return true;
                     }
                 }
@@ -113,7 +113,7 @@ impl Level {
     pub fn draw(&self) {
         for (y, fila) in self.grid.iter().enumerate() {
             for (x, &tile) in fila.iter().enumerate() {
-                if tile == 1 {
+                if tile == TileType::Wall {
                     draw_rectangle(
                         x as f32 * TILE_SIZE,
                         y as f32 * TILE_SIZE,

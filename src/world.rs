@@ -1,5 +1,6 @@
 // src/world.rs
 use crate::camera::GameCamera;
+use crate::config::TILE_SIZE;
 use crate::enemy::Enemy;
 use crate::level::Level;
 use crate::player::Player;
@@ -15,6 +16,26 @@ pub struct World {
     pub camera: GameCamera,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum TileType {
+    Empty,
+    Wall,
+    EnemySpawn,
+    BossSpawn,
+    SavePoint,
+}
+
+impl From<u8> for TileType {
+    fn from(value: u8) -> Self {
+        match value {
+            1 => TileType::Wall,
+            2 => TileType::EnemySpawn,
+            3 => TileType::BossSpawn,
+            _ => TileType::Empty, // El 0 y cualquier otro caen aquí
+        }
+    }
+}
+
 impl fmt::Debug for World {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("World")
@@ -28,7 +49,7 @@ impl fmt::Debug for World {
 }
 
 impl World {
-    pub fn new(matrix_data: Vec<Vec<Vec<Vec<u8>>>>) -> Self {
+    pub fn new(matrix_data: Vec<Vec<Vec<Vec<TileType>>>>) -> Self {
         let levels = matrix_data
             .into_iter()
             .map(|row| row.into_iter().map(Level::new).collect())
@@ -41,6 +62,31 @@ impl World {
             current_coords: (0, 0),
             camera: GameCamera::new(),
         }
+    }
+    fn load_current_level(&mut self) {
+        self.enemies.clear();
+        self.player.bullets.clear();
+
+        let level = &self.levels_matrix[self.current_coords.1][self.current_coords.0];
+
+        for (y, row) in level.grid.iter().enumerate() {
+            for (x, &tile) in row.iter().enumerate() {
+                if tile == TileType::EnemySpawn {
+                    let pos = vec2(
+                        x as f32 * crate::config::TILE_SIZE,
+                        y as f32 * crate::config::TILE_SIZE,
+                    );
+                    self.enemies.push(Enemy::new(pos));
+                }
+            }
+        }
+
+        println!(
+            "Nivel {},{} cargado con {} enemigos",
+            self.current_coords.0,
+            self.current_coords.1,
+            self.enemies.len()
+        );
     }
     fn check_level_transitions(&mut self) {
         let (cx, cy) = self.current_coords;
@@ -96,7 +142,7 @@ impl World {
                 "Cambiado a nivel: {},{}",
                 self.current_coords.0, self.current_coords.1
             );
-            self.enemies.clear();
+            self.load_current_level();
         }
     }
 
@@ -123,6 +169,19 @@ impl World {
         self.enemies.retain(|e| e.alive);
         self.camera
             .update(self.player.pos, vec2(self.player.w, self.player.h), level);
+    }
+
+    pub fn spawn_entities(&mut self, level: &Level) {
+        for (y, row) in level.grid.iter().enumerate() {
+            for (x, tile) in row.iter().enumerate() {
+                let pos = vec2(x as f32 * TILE_SIZE, y as f32 * TILE_SIZE);
+
+                match tile {
+                    TileType::EnemySpawn => self.enemies.push(Enemy::new(pos)),
+                    _ => {}
+                }
+            }
+        }
     }
 
     pub fn draw(&self) {
