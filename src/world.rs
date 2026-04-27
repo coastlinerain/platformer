@@ -3,6 +3,7 @@ use crate::camera::GameCamera;
 use crate::config::TILE_SIZE;
 use crate::enemy::Enemy;
 use crate::level::Level;
+use crate::maps::Map;
 use crate::player::Player;
 use crate::traits::Entity;
 use macroquad::prelude::*;
@@ -43,6 +44,17 @@ impl From<u8> for TileType {
     }
 }
 
+impl From<u8> for EntityType {
+    fn from(value: u8) -> Self {
+        match value {
+            1 => EntityType::EnemySpawn,
+            2 => EntityType::BossSpawn,
+            3 => EntityType::PotionSpawn,
+            _ => EntityType::Empty, // El 0 y cualquier otro caen aquí
+        }
+    }
+}
+
 impl fmt::Debug for World {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("World")
@@ -56,10 +68,18 @@ impl fmt::Debug for World {
 }
 
 impl World {
-    pub fn new(matrix_data: Vec<Vec<Vec<Vec<TileType>>>>) -> Self {
-        let levels = matrix_data
+    pub fn new(matrix_data: Map) -> Self {
+        let levels: Vec<Vec<Level>> = matrix_data
+            .grids
             .into_iter()
-            .map(|row| row.into_iter().map(Level::new).collect())
+            .zip(matrix_data.data.into_iter())
+            .map(|(grid_row, data_row)| {
+                grid_row
+                    .into_iter()
+                    .zip(data_row.into_iter())
+                    .map(|(grid, data)| Level::new(grid, data))
+                    .collect()
+            })
             .collect();
 
         Self {
@@ -76,14 +96,14 @@ impl World {
 
         let level = &self.levels_matrix[self.current_coords.1][self.current_coords.0];
 
-        for (y, row) in level.grid.iter().enumerate() {
-            for (x, &tile) in row.iter().enumerate() {
-                if tile == TileType::EnemySpawn {
-                    let pos = vec2(
-                        x as f32 * crate::config::TILE_SIZE,
-                        y as f32 * crate::config::TILE_SIZE,
-                    );
-                    self.enemies.push(Enemy::new(pos));
+        for (y, row) in level.data.iter().enumerate() {
+            for (x, &data) in row.iter().enumerate() {
+                let pos = vec2(x as f32 * TILE_SIZE, y as f32 * TILE_SIZE);
+
+                match data {
+                    EntityType::EnemySpawn => self.enemies.push(Enemy::new(pos, BLUE)),
+                    EntityType::PotionSpawn => self.enemies.push(Enemy::new(pos, GREEN)),
+                    _ => {}
                 }
             }
         }
@@ -179,12 +199,13 @@ impl World {
     }
 
     pub fn spawn_entities(&mut self, level: &Level) {
-        for (y, row) in level.grid.iter().enumerate() {
-            for (x, tile) in row.iter().enumerate() {
+        for (y, row) in level.data.iter().enumerate() {
+            for (x, data) in row.iter().enumerate() {
                 let pos = vec2(x as f32 * TILE_SIZE, y as f32 * TILE_SIZE);
 
-                match tile {
-                    TileType::EnemySpawn => self.enemies.push(Enemy::new(pos)),
+                match data {
+                    EntityType::EnemySpawn => self.enemies.push(Enemy::new(pos, BLUE)),
+                    EntityType::PotionSpawn => self.enemies.push(Enemy::new(pos, GREEN)),
                     _ => {}
                 }
             }

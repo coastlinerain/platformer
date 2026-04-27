@@ -8,13 +8,13 @@ mod player;
 mod traits;
 mod world;
 
-use crate::maps::get_world_matrix;
+use crate::maps::Map;
 use macroquad::prelude::*;
 use world::World;
 
 #[macroquad::main("Rustvania")]
 async fn main() {
-    let world_data = get_world_matrix();
+    let world_data = Map::new();
     let mut game_world = World::new(world_data);
 
     loop {

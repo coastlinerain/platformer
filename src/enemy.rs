@@ -25,6 +25,7 @@ pub struct Enemy {
     pub state: EnemyState,
     pub timer: f32,
     pub alive: bool,
+    pub color: Color,
 }
 
 impl Entity for Enemy {
@@ -52,12 +53,12 @@ impl Entity for Enemy {
     }
 
     fn draw(&self) {
-        draw_rectangle(self.pos.x, self.pos.y, self.w, self.h, BLUE);
+        draw_rectangle(self.pos.x, self.pos.y, self.w, self.h, self.color);
     }
 }
 
 impl Enemy {
-    pub fn new(pos: Vec2) -> Self {
+    pub fn new(pos: Vec2, color: Color) -> Self {
         Self {
             pos: pos,
             vel: vec2(0.0, 0.0),
@@ -67,6 +68,7 @@ impl Enemy {
             state: EnemyState::Idle,
             timer: 0.0,
             alive: true,
+            color: color,
         }
     }
     pub fn die(&mut self) {

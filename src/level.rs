@@ -15,14 +15,14 @@ pub struct Level {
 }
 
 impl Level {
-    pub fn new(grid: Vec<Vec<TileType>>) -> Self {
+    pub fn new(grid: Vec<Vec<TileType>>, data: Vec<Vec<EntityType>>) -> Self {
         let height = grid.len();
         let width = if height > 0 { grid[0].len() } else { 0 };
         Self {
             grid: grid,
             width,
             height,
-            data: vec![vec![EntityType::Empty; width]; height],
+            data: data,
         }
     }
 
