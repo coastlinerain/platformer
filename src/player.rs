@@ -1,5 +1,5 @@
-use crate::bullet::Bullet;
 use crate::config::*;
+use crate::entities::bullet::Bullet;
 use crate::level::Level;
 use crate::traits::{Colisionable, Entity};
 use macroquad::prelude::*;
@@ -12,7 +12,7 @@ pub struct Player {
     pub h: f32,
     pub grounded: bool,
     pub dir: f32,
-    pub bullets: Vec<crate::bullet::Bullet>,
+    pub bullets: Vec<Bullet>,
 }
 impl Colisionable for Player {
     fn get_rect(&self) -> Rect {

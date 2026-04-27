@@ -1,9 +1,9 @@
-use crate::bullet::Bullet;
 use crate::config::TILE_SIZE;
-use crate::enemy::Enemy;
+use crate::entities::bullet::Bullet;
+use crate::entities::enemy::Enemy;
+use crate::entities::nemesis::{self, Nemesis};
 use crate::level::Level;
 use crate::maps::Map;
-use crate::nemesis::{self, Nemesis};
 use crate::network::GamePacket;
 use crate::player::Player;
 use crate::traits::Entity;
@@ -22,7 +22,7 @@ pub struct World {
     pub camera: GameCamera,
     pub network: crate::network::NetworkClient,
     pub other_players: HashMap<u64, Nemesis>,
-    pub enemy_bullets: Vec<crate::bullet::Bullet>,
+    pub enemy_bullets: Vec<Bullet>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

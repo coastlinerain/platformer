@@ -1,5 +1,4 @@
 use crate::config::BULLET_SPEED;
-use crate::enemy::Enemy;
 use crate::level::Level;
 use crate::traits::{Colisionable, Entity, detect_collision};
 use macroquad::prelude::*;

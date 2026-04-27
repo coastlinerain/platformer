@@ -1,10 +1,8 @@
-mod bullet;
 mod camera;
 mod config;
-mod enemy;
+mod entities;
 mod level;
 mod maps;
-mod nemesis;
 mod network;
 mod player;
 mod traits;

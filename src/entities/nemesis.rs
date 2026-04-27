@@ -1,5 +1,5 @@
 use crate::network::GamePacket;
-use macroquad::math::Vec2; // Asegúrate de importar tu Enum de paquetes
+use macroquad::math::Vec2;
 use macroquad::prelude::*;
 
 #[derive(Debug)]
