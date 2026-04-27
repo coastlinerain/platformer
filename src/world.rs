@@ -22,7 +22,14 @@ pub enum TileType {
     Wall,
     EnemySpawn,
     BossSpawn,
-    SavePoint,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum EntityType {
+    Empty,
+    EnemySpawn,
+    BossSpawn,
+    PotionSpawn,
 }
 
 impl From<u8> for TileType {

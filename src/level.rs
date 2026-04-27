@@ -1,22 +1,28 @@
 use macroquad::prelude::*;
 
-use crate::{config::TILE_SIZE, traits::Colisionable, world::TileType};
+use crate::{
+    config::TILE_SIZE,
+    traits::Colisionable,
+    world::{EntityType, TileType},
+};
 
 #[derive(Debug)]
 pub struct Level {
     pub grid: Vec<Vec<TileType>>,
     pub width: usize,
     pub height: usize,
+    pub data: Vec<Vec<EntityType>>,
 }
 
 impl Level {
-    pub fn new(data: Vec<Vec<TileType>>) -> Self {
-        let height = data.len();
-        let width = if height > 0 { data[0].len() } else { 0 };
+    pub fn new(grid: Vec<Vec<TileType>>) -> Self {
+        let height = grid.len();
+        let width = if height > 0 { grid[0].len() } else { 0 };
         Self {
-            grid: data,
+            grid: grid,
             width,
             height,
+            data: vec![vec![EntityType::Empty; width]; height],
         }
     }
 
