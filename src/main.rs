@@ -4,6 +4,8 @@ mod config;
 mod enemy;
 mod level;
 mod maps;
+mod nemesis;
+mod network;
 mod player;
 mod traits;
 mod world;
@@ -15,7 +17,8 @@ use world::World;
 #[macroquad::main("Rustvania")]
 async fn main() {
     let world_data = Map::new();
-    let mut game_world = World::new(world_data);
+    let network_client = crate::network::NetworkClient::new("127.0.0.1:12345");
+    let mut game_world = World::new(world_data, network_client);
 
     loop {
         if is_key_pressed(KeyCode::P) {

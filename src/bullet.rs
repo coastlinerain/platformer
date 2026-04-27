@@ -37,7 +37,7 @@ impl Bullet {
             active: true,
         }
     }
-    pub fn check_collision(&self, enemy: &Enemy) -> bool {
-        detect_collision(self, enemy)
+    pub fn check_collision<T: Colisionable>(&self, target: &T) -> bool {
+        detect_collision(self, target)
     }
 }

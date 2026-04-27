@@ -1,20 +1,28 @@
-// src/world.rs
-use crate::camera::GameCamera;
+use crate::bullet::Bullet;
 use crate::config::TILE_SIZE;
 use crate::enemy::Enemy;
 use crate::level::Level;
 use crate::maps::Map;
+use crate::nemesis::{self, Nemesis};
+use crate::network::GamePacket;
 use crate::player::Player;
 use crate::traits::Entity;
+use crate::{camera::GameCamera, network};
+use laminar::{Packet, SocketEvent};
 use macroquad::prelude::*;
+use std::collections::HashMap;
 use std::fmt;
 
 pub struct World {
+    pub id: Option<u64>,
     pub player: Player,
     pub enemies: Vec<Enemy>,
     pub levels_matrix: Vec<Vec<Level>>, // Matriz de niveles
     pub current_coords: (usize, usize),
     pub camera: GameCamera,
+    pub network: crate::network::NetworkClient,
+    pub other_players: HashMap<u64, Nemesis>,
+    pub enemy_bullets: Vec<crate::bullet::Bullet>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -63,12 +71,25 @@ impl fmt::Debug for World {
             .field("levels_matrix", &self.levels_matrix.len())
             .field("current_coords", &self.current_coords)
             .field("camera", &self.camera)
+            .field("other_players", &self.other_players)
             .finish()
     }
 }
 
 impl World {
-    pub fn new(matrix_data: Map) -> Self {
+    pub fn new(matrix_data: Map, network: crate::network::NetworkClient) -> Self {
+        let join_msg = GamePacket::JoinRequest;
+        let bytes = postcard::to_allocvec(&join_msg).unwrap();
+
+        network
+            .sender
+            .send(laminar::Packet::reliable_ordered(
+                network.server_addr,
+                bytes,
+                None,
+            ))
+            .unwrap();
+
         let levels: Vec<Vec<Level>> = matrix_data
             .grids
             .into_iter()
@@ -83,11 +104,15 @@ impl World {
             .collect();
 
         Self {
+            id: None,
             player: Player::new(),
             enemies: vec![],
             levels_matrix: levels,
             current_coords: (0, 0),
             camera: GameCamera::new(),
+            network: network,
+            other_players: HashMap::new(),
+            enemy_bullets: Vec::new(),
         }
     }
     fn load_current_level(&mut self) {
@@ -176,28 +201,130 @@ impl World {
     pub fn update(&mut self, dt: f32) {
         self.check_level_transitions();
 
-        let level = &self.levels_matrix[self.current_coords.1][self.current_coords.0];
+        {
+            let level = &self.levels_matrix[self.current_coords.1][self.current_coords.0];
 
-        self.player.update(dt, &level);
+            self.player.update(dt, &level);
 
-        for enemy in &mut self.enemies {
-            enemy.update(dt, &level);
+            for enemy in &mut self.enemies {
+                enemy.update(dt, &level);
+            }
+
+            for bullet in &mut self.player.bullets {
+                for enemy in &mut self.enemies {
+                    if bullet.check_collision(enemy) {
+                        bullet.active = false;
+                        enemy.die();
+                        println!("¡Enemigo alcanzado!");
+                    }
+                }
+            }
+            for bullet in &mut self.enemy_bullets {
+                bullet.update(dt, level);
+            }
+            self.camera
+                .update(self.player.pos, vec2(self.player.w, self.player.h), &level);
         }
 
-        for bullet in &mut self.player.bullets {
-            for enemy in &mut self.enemies {
-                if bullet.check_collision(enemy) {
-                    bullet.active = false;
-                    enemy.die();
-                    println!("¡Enemigo alcanzado!");
+        self.update_network();
+        self.enemies.retain(|e| e.alive);
+    }
+
+    fn update_network(&mut self) {
+        // 1. RECIBIR: Escuchar qué dice el servidor
+        while let Ok(event) = self.network.receiver.try_recv() {
+            if let SocketEvent::Packet(packet) = event {
+                if let Ok(decoded) = postcard::from_bytes::<GamePacket>(packet.payload()) {
+                    match decoded {
+                        GamePacket::JoinResponse { assigned_id } => {
+                            self.id = Some(assigned_id);
+                            println!("¡Conectado! Mi ID es {}", assigned_id);
+                        }
+                        GamePacket::PlayerPos { id, x, y, dir } => {
+                            if Some(id) != self.id {
+                                if let Some(nemesis) = self.other_players.get_mut(&id) {
+                                    nemesis.pos = vec2(x, y);
+                                    nemesis.last_dir = dir;
+                                } else {
+                                    println!("Creamos jugador {}", id);
+                                    let mut new_nemesis = Nemesis::new(id, vec2(x, y));
+                                    new_nemesis.last_dir = dir;
+
+                                    // Insertamos usando 'id' como clave y el objeto como valor
+                                    self.other_players.insert(id, new_nemesis);
+                                }
+                            }
+                        }
+                        GamePacket::Action { id, kind, dir } => {
+                            if kind.to_string() == "shoot" {
+                                if let Some(enemy) = self.other_players.get(&id) {
+                                    println!("El jugador {} disparó en {:?}", id, enemy.pos);
+
+                                    let spawn_center = vec2(
+                                        enemy.pos.x + (enemy.w / 2.0),
+                                        enemy.pos.y + (enemy.h / 2.0),
+                                    );
+
+                                    self.enemy_bullets
+                                        .push(Bullet::new(spawn_center, dir as f32));
+                                } else {
+                                    println!(
+                                        "DEBUG: Recibido disparo de ID {} pero no lo tengo en mi lista!",
+                                        id
+                                    );
+                                }
+                            }
+                        }
+                        GamePacket::Leave { id } => {
+                            if let Some(_removed_enemy) = self.other_players.remove(&id) {
+                                println!("El jugador {} se ha ido. Eliminando del mundo.", id);
+                            } else {
+                                println!(
+                                    "DEBUG: Intento de borrar ID {} que no existía en el cliente.",
+                                    id
+                                );
+                            }
+                        }
+                        _ => {}
+                    }
                 }
             }
         }
-        self.enemies.retain(|e| e.alive);
-        self.camera
-            .update(self.player.pos, vec2(self.player.w, self.player.h), level);
-    }
 
+        // 2. ENVIAR: Solo si el servidor ya nos dio un ID
+        if let Some(id) = self.id {
+            let pos_msg = GamePacket::PlayerPos {
+                id,
+                x: self.player.pos.x,
+                y: self.player.pos.y,
+                dir: self.player.dir,
+            };
+            let bytes = postcard::to_allocvec(&pos_msg).unwrap();
+            self.network
+                .sender
+                .send(laminar::Packet::unreliable(self.network.server_addr, bytes))
+                .unwrap();
+
+            if is_key_pressed(KeyCode::Z) {
+                let shoot_msg = GamePacket::Action {
+                    id: self.id.unwrap(),
+                    kind: "shoot".to_string(),
+                    dir: self.player.dir as f32,
+                };
+                let bytes = postcard::to_allocvec(&shoot_msg).unwrap();
+                self.network
+                    .sender
+                    .send(laminar::Packet::unreliable(self.network.server_addr, bytes))
+                    .unwrap();
+            }
+        }
+    }
+    fn handle_packet(&mut self, packet: GamePacket) {
+        match packet {
+            GamePacket::PlayerPos { id, x, y, dir } => {}
+            _ => {}
+        }
+    }
     pub fn spawn_entities(&mut self, level: &Level) {
         for (y, row) in level.data.iter().enumerate() {
             for (x, data) in row.iter().enumerate() {
@@ -214,17 +341,32 @@ impl World {
 
     pub fn draw(&self) {
         self.camera.apply();
+
         let level = &self.levels_matrix[self.current_coords.1][self.current_coords.0];
         level.draw();
+
+        // --- RENDERIZAR OTROS JUGADORES ---
+        for (id, enemy) in &self.other_players {
+            enemy.draw();
+        }
+
         self.player.draw();
+
         for bullet in &self.player.bullets {
             bullet.draw();
         }
+
+        for bullet in &self.enemy_bullets {
+            bullet.draw();
+        }
+
         for enemy in &self.enemies {
             enemy.draw();
         }
+
         set_default_camera();
-        //HUD
+
+        // --- HUD (Coordenadas de pantalla fija) ---
         draw_text(
             &format!("Level: {},{}", self.current_coords.0, self.current_coords.1),
             10.0,
@@ -232,5 +374,11 @@ impl World {
             20.0,
             WHITE,
         );
+
+        if let Some(my_id) = self.id {
+            draw_text(&format!("My ID: {}", my_id), 10.0, 40.0, 20.0, GREEN);
+        } else {
+            draw_text("Connecting...", 10.0, 40.0, 20.0, RED);
+        }
     }
 }

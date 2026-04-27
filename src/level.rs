@@ -6,7 +6,7 @@ use crate::{
     world::{EntityType, TileType},
 };
 
-#[derive(Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Level {
     pub grid: Vec<Vec<TileType>>,
     pub width: usize,
