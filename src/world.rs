@@ -14,14 +14,14 @@ use std::collections::HashMap;
 use std::fmt;
 
 pub struct World {
-    pub id: Option<u64>,
+    pub id: Option<u8>,
     pub player: Player,
     pub enemies: Vec<Enemy>,
     pub levels_matrix: Vec<Vec<Level>>, // Matriz de niveles
     pub current_coords: (usize, usize),
     pub camera: GameCamera,
     pub network: crate::network::NetworkClient,
-    pub other_players: HashMap<u64, Nemesis>,
+    pub other_players: HashMap<u8, Nemesis>,
     pub enemy_bullets: Vec<Bullet>,
 }
 
@@ -105,7 +105,7 @@ impl World {
 
         Self {
             id: None,
-            player: Player::new(),
+            player: Player::new(0),
             enemies: vec![],
             levels_matrix: levels,
             current_coords: (0, 0),
@@ -200,7 +200,8 @@ impl World {
 
     pub fn update(&mut self, dt: f32) {
         self.check_level_transitions();
-
+        self.update_enemy_bullets_position(dt);
+        self.check_player_death();
         {
             let level = &self.levels_matrix[self.current_coords.1][self.current_coords.0];
 
@@ -219,17 +220,57 @@ impl World {
                     }
                 }
             }
-            for bullet in &mut self.enemy_bullets {
-                bullet.update(dt, level);
-            }
             self.camera
                 .update(self.player.pos, vec2(self.player.w, self.player.h), &level);
         }
-
         self.update_network();
         self.enemies.retain(|e| e.alive);
     }
+    fn update_enemy_bullets_position(&mut self, dt: f32) {
+        let current_room = self.current_coords;
+        let level = &self.levels_matrix[current_room.1][current_room.0];
 
+        self.enemy_bullets.retain_mut(|bullet| {
+            if let Some(owner) = self.other_players.get(&bullet.owner_id) {
+                bullet.update(dt, level);
+                bullet.active
+            } else {
+                false
+            }
+        });
+    }
+    fn check_player_death(&mut self) {
+        let mut died = false;
+
+        for bullet in &mut self.enemy_bullets {
+            if bullet.active && bullet.check_collision(&self.player) {
+                bullet.active = false;
+                died = true;
+                break;
+            }
+        }
+
+        if died {
+            self.handle_death();
+        }
+    }
+    fn handle_death(&mut self) {
+        if let Some(my_id) = self.id {
+            let death_msg = GamePacket::Hit { entity_id: my_id }; // O GamePacket::Death
+            let bytes = postcard::to_allocvec(&death_msg).unwrap();
+
+            let _ = self.network.sender.send(laminar::Packet::reliable_ordered(
+                self.network.server_addr,
+                bytes,
+                None,
+            ));
+        }
+
+        println!("¡Has muerto! Volviendo al inicio...");
+        self.current_coords = (0, 0);
+        self.player.pos = vec2(100.0, 100.0);
+        self.load_current_level();
+    }
     fn update_network(&mut self) {
         // 1. RECIBIR: Escuchar qué dice el servidor
         while let Ok(event) = self.network.receiver.try_recv() {
@@ -238,6 +279,7 @@ impl World {
                     match decoded {
                         GamePacket::JoinResponse { assigned_id } => {
                             self.id = Some(assigned_id);
+                            self.player.id = assigned_id;
                             println!("¡Conectado! Mi ID es {}", assigned_id);
                         }
                         GamePacket::PlayerPos {
@@ -274,8 +316,16 @@ impl World {
                                         enemy.pos.y + (enemy.h / 2.0),
                                     );
 
-                                    self.enemy_bullets
-                                        .push(Bullet::new(spawn_center, dir as f32));
+                                    if let Some(owner) = self.other_players.get(&id) {
+                                        if owner.coords == self.current_coords {
+                                            println!("SAME room");
+                                            self.enemy_bullets.push(Bullet::new(
+                                                spawn_center,
+                                                dir as f32,
+                                                enemy.id,
+                                            ));
+                                        }
+                                    }
                                 } else {
                                     println!(
                                         "DEBUG: Recibido disparo de ID {} pero no lo tengo en mi lista!",

@@ -6,6 +6,7 @@ use macroquad::prelude::*;
 
 #[derive(Debug)]
 pub struct Player {
+    pub id: u8,
     pub pos: Vec2,
     pub vel: Vec2,
     pub w: f32,
@@ -45,6 +46,7 @@ impl Entity for Player {
             self.bullets.push(Bullet::new(
                 self.pos + vec2(self.w / 2.0, self.h / 2.0),
                 self.dir as f32,
+                self.id,
             ));
         }
         // update bullets
@@ -77,8 +79,9 @@ impl Entity for Player {
     }
 }
 impl Player {
-    pub fn new() -> Self {
+    pub fn new(id: u8) -> Self {
         Self {
+            id,
             pos: vec2(100.0, 100.0),
             vel: vec2(0.0, 0.0),
             w: 30.0,

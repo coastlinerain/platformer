@@ -4,7 +4,7 @@ use macroquad::prelude::*;
 
 #[derive(Debug)]
 pub struct Nemesis {
-    pub id: u64,
+    pub id: u8,
     pub pos: Vec2,
     pub w: f32,
     pub h: f32,
@@ -13,7 +13,7 @@ pub struct Nemesis {
 }
 
 impl Nemesis {
-    pub fn new(id: u64, pos: Vec2) -> Self {
+    pub fn new(id: u8, pos: Vec2) -> Self {
         Self {
             id,
             pos,

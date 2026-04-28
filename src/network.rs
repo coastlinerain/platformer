@@ -12,10 +12,10 @@ pub struct NetworkClient {
 pub enum GamePacket {
     JoinRequest,
     JoinResponse {
-        assigned_id: u64,
+        assigned_id: u8,
     },
     PlayerPos {
-        id: u64,
+        id: u8,
         x: f32,
         y: f32,
         dir: f32,
@@ -23,12 +23,15 @@ pub enum GamePacket {
         level_y: u8,
     },
     Action {
-        id: u64,
+        id: u8,
         kind: String,
         dir: f32,
     },
     Leave {
-        id: u64,
+        id: u8,
+    },
+    Hit {
+        entity_id: u8,
     },
 }
 

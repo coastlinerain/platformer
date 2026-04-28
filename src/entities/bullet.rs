@@ -8,6 +8,7 @@ pub struct Bullet {
     pub pos: Vec2,
     pub vel: Vec2,
     pub active: bool,
+    pub owner_id: u8,
 }
 
 impl Colisionable for Bullet {
@@ -29,11 +30,12 @@ impl Entity for Bullet {
 }
 
 impl Bullet {
-    pub fn new(pos: Vec2, dir_x: f32) -> Self {
+    pub fn new(pos: Vec2, dir_x: f32, id: u8) -> Self {
         Self {
             pos,
             vel: vec2(dir_x * BULLET_SPEED, 0.0),
             active: true,
+            owner_id: id,
         }
     }
     pub fn check_collision<T: Colisionable>(&self, target: &T) -> bool {
