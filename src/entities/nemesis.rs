@@ -9,6 +9,7 @@ pub struct Nemesis {
     pub w: f32,
     pub h: f32,
     pub last_dir: f32,
+    pub coords: (usize, usize),
 }
 
 impl Nemesis {
@@ -19,6 +20,7 @@ impl Nemesis {
             w: 30.0,
             h: 38.0,
             last_dir: 1.0,
+            coords: (0, 0),
         }
     }
 

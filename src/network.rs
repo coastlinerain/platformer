@@ -11,10 +11,25 @@ pub struct NetworkClient {
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub enum GamePacket {
     JoinRequest,
-    JoinResponse { assigned_id: u64 },
-    PlayerPos { id: u64, x: f32, y: f32, dir: f32 },
-    Action { id: u64, kind: String, dir: f32 },
-    Leave { id: u64 },
+    JoinResponse {
+        assigned_id: u64,
+    },
+    PlayerPos {
+        id: u64,
+        x: f32,
+        y: f32,
+        dir: f32,
+        level_x: u8,
+        level_y: u8,
+    },
+    Action {
+        id: u64,
+        kind: String,
+        dir: f32,
+    },
+    Leave {
+        id: u64,
+    },
 }
 
 impl NetworkClient {

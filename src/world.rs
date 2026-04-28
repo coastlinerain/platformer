@@ -240,15 +240,24 @@ impl World {
                             self.id = Some(assigned_id);
                             println!("¡Conectado! Mi ID es {}", assigned_id);
                         }
-                        GamePacket::PlayerPos { id, x, y, dir } => {
+                        GamePacket::PlayerPos {
+                            id,
+                            x,
+                            y,
+                            dir,
+                            level_x,
+                            level_y,
+                        } => {
                             if Some(id) != self.id {
                                 if let Some(nemesis) = self.other_players.get_mut(&id) {
                                     nemesis.pos = vec2(x, y);
                                     nemesis.last_dir = dir;
+                                    nemesis.coords = (level_x as usize, level_y as usize)
                                 } else {
                                     println!("Creamos jugador {}", id);
                                     let mut new_nemesis = Nemesis::new(id, vec2(x, y));
                                     new_nemesis.last_dir = dir;
+                                    new_nemesis.coords = (level_x as usize, level_y as usize);
 
                                     // Insertamos usando 'id' como clave y el objeto como valor
                                     self.other_players.insert(id, new_nemesis);
@@ -298,6 +307,8 @@ impl World {
                 x: self.player.pos.x,
                 y: self.player.pos.y,
                 dir: self.player.dir,
+                level_x: self.current_coords.0 as u8,
+                level_y: self.current_coords.1 as u8,
             };
             let bytes = postcard::to_allocvec(&pos_msg).unwrap();
             self.network
@@ -321,7 +332,14 @@ impl World {
     }
     fn handle_packet(&mut self, packet: GamePacket) {
         match packet {
-            GamePacket::PlayerPos { id, x, y, dir } => {}
+            GamePacket::PlayerPos {
+                id,
+                x,
+                y,
+                dir,
+                level_x,
+                level_y,
+            } => {}
             _ => {}
         }
     }
@@ -347,7 +365,9 @@ impl World {
 
         // --- RENDERIZAR OTROS JUGADORES ---
         for (id, enemy) in &self.other_players {
-            enemy.draw();
+            if enemy.coords == self.current_coords {
+                enemy.draw();
+            }
         }
 
         self.player.draw();
