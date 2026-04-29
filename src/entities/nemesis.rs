@@ -1,4 +1,3 @@
-use crate::network::GamePacket;
 use macroquad::math::Vec2;
 use macroquad::prelude::*;
 

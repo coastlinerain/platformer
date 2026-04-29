@@ -4,13 +4,12 @@ mod entities;
 mod level;
 mod maps;
 mod network;
-mod player;
 mod traits;
 mod world;
 
 use crate::maps::Map;
 use macroquad::prelude::*;
-use world::World;
+use world::world::World;
 
 #[macroquad::main("Rustvania")]
 async fn main() {

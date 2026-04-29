@@ -1,14 +1,14 @@
+use crate::camera::GameCamera;
 use crate::config::TILE_SIZE;
 use crate::entities::bullet::Bullet;
 use crate::entities::enemy::Enemy;
-use crate::entities::nemesis::{self, Nemesis};
+use crate::entities::nemesis::Nemesis;
+use crate::entities::player::Player;
 use crate::level::Level;
 use crate::maps::Map;
 use crate::network::GamePacket;
-use crate::player::Player;
 use crate::traits::Entity;
-use crate::{camera::GameCamera, network};
-use laminar::{Packet, SocketEvent};
+use laminar::SocketEvent;
 use macroquad::prelude::*;
 use std::collections::HashMap;
 use std::fmt;
@@ -276,76 +276,7 @@ impl World {
         while let Ok(event) = self.network.receiver.try_recv() {
             if let SocketEvent::Packet(packet) = event {
                 if let Ok(decoded) = postcard::from_bytes::<GamePacket>(packet.payload()) {
-                    match decoded {
-                        GamePacket::JoinResponse { assigned_id } => {
-                            self.id = Some(assigned_id);
-                            self.player.id = assigned_id;
-                            println!("¡Conectado! Mi ID es {}", assigned_id);
-                        }
-                        GamePacket::PlayerPos {
-                            id,
-                            x,
-                            y,
-                            dir,
-                            level_x,
-                            level_y,
-                        } => {
-                            if Some(id) != self.id {
-                                if let Some(nemesis) = self.other_players.get_mut(&id) {
-                                    nemesis.pos = vec2(x, y);
-                                    nemesis.last_dir = dir;
-                                    nemesis.coords = (level_x as usize, level_y as usize)
-                                } else {
-                                    println!("Creamos jugador {}", id);
-                                    let mut new_nemesis = Nemesis::new(id, vec2(x, y));
-                                    new_nemesis.last_dir = dir;
-                                    new_nemesis.coords = (level_x as usize, level_y as usize);
-
-                                    // Insertamos usando 'id' como clave y el objeto como valor
-                                    self.other_players.insert(id, new_nemesis);
-                                }
-                            }
-                        }
-                        GamePacket::Action { id, kind, dir } => {
-                            if kind.to_string() == "shoot" {
-                                if let Some(enemy) = self.other_players.get(&id) {
-                                    println!("El jugador {} disparó en {:?}", id, enemy.pos);
-
-                                    let spawn_center = vec2(
-                                        enemy.pos.x + (enemy.w / 2.0),
-                                        enemy.pos.y + (enemy.h / 2.0),
-                                    );
-
-                                    if let Some(owner) = self.other_players.get(&id) {
-                                        if owner.coords == self.current_coords {
-                                            println!("SAME room");
-                                            self.enemy_bullets.push(Bullet::new(
-                                                spawn_center,
-                                                dir as f32,
-                                                enemy.id,
-                                            ));
-                                        }
-                                    }
-                                } else {
-                                    println!(
-                                        "DEBUG: Recibido disparo de ID {} pero no lo tengo en mi lista!",
-                                        id
-                                    );
-                                }
-                            }
-                        }
-                        GamePacket::Leave { id } => {
-                            if let Some(_removed_enemy) = self.other_players.remove(&id) {
-                                println!("El jugador {} se ha ido. Eliminando del mundo.", id);
-                            } else {
-                                println!(
-                                    "DEBUG: Intento de borrar ID {} que no existía en el cliente.",
-                                    id
-                                );
-                            }
-                        }
-                        _ => {}
-                    }
+                    self.handle_packet(decoded);
                 }
             }
         }
@@ -380,8 +311,13 @@ impl World {
             }
         }
     }
-    fn handle_packet(&mut self, packet: GamePacket) {
-        match packet {
+    fn handle_packet(&mut self, decoded: GamePacket) {
+        match decoded {
+            GamePacket::JoinResponse { assigned_id } => {
+                self.id = Some(assigned_id);
+                self.player.id = assigned_id;
+                println!("¡Conectado! Mi ID es {}", assigned_id);
+            }
             GamePacket::PlayerPos {
                 id,
                 x,
@@ -389,7 +325,60 @@ impl World {
                 dir,
                 level_x,
                 level_y,
-            } => {}
+            } => {
+                if Some(id) != self.id {
+                    if let Some(nemesis) = self.other_players.get_mut(&id) {
+                        nemesis.pos = vec2(x, y);
+                        nemesis.last_dir = dir;
+                        nemesis.coords = (level_x as usize, level_y as usize)
+                    } else {
+                        println!("Creamos jugador {}", id);
+                        let mut new_nemesis = Nemesis::new(id, vec2(x, y));
+                        new_nemesis.last_dir = dir;
+                        new_nemesis.coords = (level_x as usize, level_y as usize);
+
+                        // Insertamos usando 'id' como clave y el objeto como valor
+                        self.other_players.insert(id, new_nemesis);
+                    }
+                }
+            }
+            GamePacket::Action { id, kind, dir } => {
+                if kind.to_string() == "shoot" {
+                    if let Some(enemy) = self.other_players.get(&id) {
+                        println!("El jugador {} disparó en {:?}", id, enemy.pos);
+
+                        let spawn_center =
+                            vec2(enemy.pos.x + (enemy.w / 2.0), enemy.pos.y + (enemy.h / 2.0));
+
+                        if let Some(owner) = self.other_players.get(&id) {
+                            if owner.coords == self.current_coords {
+                                println!("SAME room");
+
+                                self.enemy_bullets.push(Bullet::new(
+                                    spawn_center,
+                                    dir as f32,
+                                    enemy.id,
+                                ));
+                            }
+                        }
+                    } else {
+                        println!(
+                            "DEBUG: Recibido disparo de ID {} pero no lo tengo en mi lista!",
+                            id
+                        );
+                    }
+                }
+            }
+            GamePacket::Leave { id } => {
+                if let Some(_removed_enemy) = self.other_players.remove(&id) {
+                    println!("El jugador {} se ha ido. Eliminando del mundo.", id);
+                } else {
+                    println!(
+                        "DEBUG: Intento de borrar ID {} que no existía en el cliente.",
+                        id
+                    );
+                }
+            }
             _ => {}
         }
     }
