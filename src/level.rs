@@ -3,7 +3,7 @@ use macroquad::prelude::*;
 use crate::{
     config::TILE_SIZE,
     traits::Colisionable,
-    world::world::{EntityType, TileType},
+    types::{EntityType, TileType},
 };
 
 #[derive(PartialEq, Clone, Debug)]

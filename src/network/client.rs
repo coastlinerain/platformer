@@ -2,6 +2,8 @@ use crossbeam_channel::{Receiver, Sender};
 use laminar::{Packet, Socket, SocketEvent};
 use std::net::SocketAddr;
 
+#[derive(Clone, Debug)]
+
 pub struct NetworkClient {
     pub sender: Sender<Packet>,
     pub receiver: Receiver<SocketEvent>,

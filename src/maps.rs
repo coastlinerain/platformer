@@ -1,6 +1,6 @@
 use crate::{
     config::{MAP_HEIGHT, MAP_WIDTH},
-    world::world::{EntityType, TileType},
+    types::{EntityType, TileType},
 };
 
 // Nivel (0,0) - El Inicio
